@@ -1,0 +1,38 @@
+{
+  "name": "jugaad-mcp",
+  "version": "0.1.0",
+  "description": "ジュガール（Jugaad）API を Claude から使うための MCP サーバー",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/http.js",
+    "start:stdio": "node dist/stdio.js",
+    "dev": "tsx src/http.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tsujii-lgtm/wonder_jugaad.git"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tsujii-lgtm/wonder_jugaad/issues"
+  },
+  "homepage": "https://github.com/tsujii-lgtm/wonder_jugaad#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "express": "^5.3.0",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  }
+}

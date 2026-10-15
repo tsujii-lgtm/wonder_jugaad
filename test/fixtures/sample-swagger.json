@@ -1,0 +1,30 @@
+{
+  "swagger": "2.0",
+  "info": { "title": "Sample (テスト用の架空仕様)", "version": "1" },
+  "paths": {
+    "/api/v1/applications": {
+      "get": {
+        "operationId": "listApplications",
+        "summary": "申請一覧",
+        "parameters": [{ "name": "status", "in": "query", "type": "string", "enum": ["pending", "approved"] }]
+      },
+      "post": {
+        "operationId": "createApplication",
+        "summary": "申請作成",
+        "parameters": [{ "name": "payload", "in": "body", "required": true, "schema": { "$ref": "#/definitions/NewApplication" } }]
+      }
+    },
+    "/api/v1/applications/{id}": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "type": "integer" }],
+      "get": { "summary": "申請詳細" }
+    }
+  },
+  "definitions": {
+    "NewApplication": {
+      "type": "object",
+      "required": ["title"],
+      "properties": { "title": { "type": "string" }, "owner": { "$ref": "#/definitions/User" } }
+    },
+    "User": { "type": "object", "properties": { "name": { "type": "string" }, "manager": { "$ref": "#/definitions/User" } } }
+  }
+}
