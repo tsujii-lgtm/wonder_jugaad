@@ -1,0 +1,20 @@
+name = "wonder-jugaad-mcp"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+# ジュガール API の接続先（API の案内に合わせて変える）
+JUGAAD_BASE_URL = "https://smartflow.vebuin.com"
+# ジュガールの Swagger(JSON) の URL。分かったら入れる。空ならツールの自動生成はしない
+JUGAAD_OPENAPI_URL = ""
+# キーを載せるヘッダ。Bearer 方式なら変えなくてよい。X-API-KEY 方式なら HEADER = "X-API-KEY", SCHEME = ""
+JUGAAD_AUTH_HEADER = "Authorization"
+JUGAAD_AUTH_SCHEME = "Bearer"
+# どちらも既定は読み取り専用。書き込みを許すときだけ "true"
+JUGAAD_ALLOW_WRITE = "false"
+GOOGLE_ALLOW_WRITE = "false"
+
+# 秘密情報はここに書かず、次のコマンドで登録する:
+#   npx wrangler secret put MCP_SECRET
+#   npx wrangler secret put JUGAAD_API_KEY
+#   npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON

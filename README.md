@@ -1,73 +1,67 @@
-# jugaad-mcp
+# wonder-jugaad-mcp
 
-ジュガール（Jugaad, https://jugaad.co.jp/）の API を Claude から使うための MCP サーバーです。
+Claude（claude.ai）からジュガール（Jugaad）の API を読むためのコネクタです。
+Cloudflare Workers（無料枠で足ります）で動くリモート MCP サーバーで、作り方は同じ作者の chatwork-mcp と同じです。
 
-ジュガールの Swagger / OpenAPI 仕様を読み込み、エンドポイントごとに MCP ツールを自動で作ります。仕様がまだ無くても、パスを指定して API を直接呼ぶ汎用ツール `jugaad_api_request` で使えます。
+既定は **読み取り専用** です。申請の作成や承認など書き込みを許すときだけ、設定を変えます。
 
-- 既定は **読み取り専用**（GET のみ）。申請の作成や承認を Claude にさせたいときだけ `JUGAAD_ALLOW_WRITE=true` にします。
-- API キーなどの認証情報は環境変数で渡し、リポジトリには置きません（`.env` は `.gitignore` 済み）。
+## できること
+
+| ツール | 内容 |
+| --- | --- |
+| `jugaad_api_request` | ジュガール API を直接呼ぶ（既定は GET のみ） |
+| `jugaad_list_endpoints` | Swagger に載っているエンドポイントの一覧 |
+| （Swagger ごとに自動生成） | `JUGAAD_OPENAPI_URL` を設定すると、エンドポイントごとのツールができる |
+
+`JUGAAD_API_KEY` を登録しないと、ツールは 1 つも出ません。
 
 ## 用意するもの
 
-1. **ジュガールの API 契約と API キー**：API 連携オプション（https://jugaad.co.jp/api/）の申込みが必要です。
-2. **Swagger / OpenAPI 仕様**：ジュガールから案内される Swagger の URL か、そこから保存した JSON / YAML。`spec/` に置くか URL を `JUGAAD_OPENAPI` に指定します。
-3. **認証ヘッダの形式**：仕様の `securityDefinitions`（または `components.securitySchemes`）を見て、`Authorization: Bearer <キー>` 以外なら `JUGAAD_AUTH_HEADER` / `JUGAAD_AUTH_SCHEME` を合わせます。
-4. **公開 HTTPS で動かす場所**（claude.ai から使う場合）：Cloud Run、Render、Fly.io など。`Dockerfile` をそのまま使えます。
+ジュガールの API は有料オプションで、公開ページには API キーの発行手順がありません。次の 3 つを、ジュガールのサポート窓口（https://smartflowhelp.zendesk.com/hc/ja/requests/new）に確認してください。
 
-## 設定（環境変数）
+1. 契約中のプランで API 連携のオプションを申し込めるか
+2. API キーの発行方法
+3. Swagger 仕様の URL と、認証ヘッダの形式（`Authorization: Bearer ...` か `X-API-KEY: ...` か）
 
-| 変数 | 既定値 | 説明 |
-| --- | --- | --- |
-| `JUGAAD_BASE_URL` | `https://smartflow.vebuin.com` | API の接続先 |
-| `JUGAAD_API_KEY` | なし | ジュガールの API キー |
-| `JUGAAD_AUTH_HEADER` | `Authorization` | キーを載せるヘッダ名 |
-| `JUGAAD_AUTH_SCHEME` | `Bearer` | ヘッダ値の前置き。空にするとキーのみを送る |
-| `JUGAAD_OPENAPI` | なし | 仕様のファイルパスか URL |
-| `JUGAAD_ALLOW_WRITE` | `false` | `true` で POST / PUT / PATCH / DELETE も許可 |
-| `MCP_ACCESS_TOKEN` | なし（HTTP では必須） | 接続 URL に含める秘密の文字列 |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | なし | サービスアカウントの鍵（JSON の中身）。設定するとスプレッドシートのツールが有効になる |
-| `GOOGLE_APPLICATION_CREDENTIALS` | なし | 鍵ファイルのパス（上の代わりに使える） |
-| `GOOGLE_ALLOW_WRITE` | `false` | `true` でスプレッドシートへの書き込みも許可 |
-| `PORT` | `8787` | HTTP の待ち受けポート |
+## セットアップ（初回だけ、15分ほど）
 
-雛形は `.env.example` にあります。
+Cloudflare のアカウント（無料）を作り、Mac のターミナルで次のコマンドを **1 行ずつ** 実行します。
 
-## claude.ai のカスタムコネクタとして使う
-
-1. `MCP_ACCESS_TOKEN` をランダムに生成します（例：`openssl rand -hex 24`）。
-2. 上の環境変数を設定してサーバーをデプロイします（`npm run build && npm start`、または Docker）。
-3. claude.ai の **設定 → コネクタ → カスタムコネクタを追加** で、URL に次を入れます。
-
-   ```
-   https://<デプロイ先のホスト>/mcp/<MCP_ACCESS_TOKEN>
-   ```
-
-   claude.ai のカスタムコネクタは任意のヘッダを送れないため、URL に秘密の文字列を含めて保護しています。この URL は API キーと同じように扱ってください。
-
-## Google スプレッドシートを読む（resow.co.jp など）
-
-同じサーバーに Google スプレッドシート用のツール（`sheets_list_spreadsheets` / `sheets_get_spreadsheet` / `sheets_get_values`）も入っています。**サービスアカウント**（ロボット用の Google アカウント）で動くため、本人のパスワードや OAuth の同意画面は要りません。読めるのは、そのサービスアカウントに共有したシートだけです。
-
-用意する手順（Google Workspace のアカウントで作業してください）：
-
-1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作り（会社の組織配下でも個人でも可）、「Google Sheets API」と「Google Drive API」を有効にします。
-2. 「IAM と管理 → サービスアカウント」でサービスアカウントを作り、「キー → 鍵を追加 → JSON」で鍵ファイルをダウンロードします。組織のポリシーで鍵の作成が禁止されている場合は、Workspace 管理者に許可を依頼してください。
-3. サービスアカウントのメールアドレス（`xxx@<project>.iam.gserviceaccount.com`）を、読ませたいスプレッドシート（またはフォルダ）に **閲覧者** として共有します。
-4. 鍵ファイルの中身を、サーバーの環境変数 `GOOGLE_SERVICE_ACCOUNT_JSON` に設定します（デプロイ先のシークレット機能を使い、リポジトリには置かない）。ローカルなら `GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json` でも動きます。
-
-書き込み（`sheets_update_values` / `sheets_append_values`）は、`GOOGLE_ALLOW_WRITE=true` にして、共有を **編集者** にしたときだけ使えます。
-
-## Claude Code / Claude Desktop からローカルで使う
-
-```bash
-npm install && npm run build
-claude mcp add jugaad -e JUGAAD_API_KEY=... -e JUGAAD_OPENAPI=/path/to/swagger.json -- node /path/to/wonder_jugaad/dist/stdio.js
+```sh
+cd ~/Documents/wonder_jugaad
+npm install --no-save wrangler
+npx wrangler login
+openssl rand -hex 24
+npx wrangler secret put MCP_SECRET
+npx wrangler secret put JUGAAD_API_KEY
+npx wrangler deploy
 ```
+
+- `openssl rand -hex 24` で表示された文字列をコピーして控え、次の `secret put MCP_SECRET` で貼り付けて Enter。
+- `secret put JUGAAD_API_KEY` では、ジュガールで発行した API キーを貼り付けて Enter。
+- 接続先や Swagger の URL は `wrangler.toml` の `[vars]` に書いてから `deploy` します（`JUGAAD_BASE_URL`、`JUGAAD_OPENAPI_URL`、認証ヘッダ）。
+
+最後に `https://wonder-jugaad-mcp.<あなたのサブドメイン>.workers.dev` が表示されます。
+
+### claude.ai にコネクタとして登録する
+
+claude.ai の「設定」→「コネクタ」→「カスタムコネクタを追加」で、
+
+- 名前: `ジュガール`
+- URL: `https://wonder-jugaad-mcp.<あなたのサブドメイン>.workers.dev/mcp/<控えた MCP_SECRET>`
+
+を入力して追加します。
+
+## セキュリティ
+
+- URL の末尾の `MCP_SECRET` を知っている人なら誰でも、あなたのジュガールを読めます。URL は他人に共有しないでください。
+- 漏れた疑いがあるときは `npx wrangler secret put MCP_SECRET` で新しい値に変え、claude.ai のコネクタ URL も差し替えてください。
+- API キーは Cloudflare のシークレットにだけ保存され、コードや GitHub には入りません。
+- 書き込みを許すには `wrangler.toml` の `JUGAAD_ALLOW_WRITE` を `"true"` にして `deploy` し直します。
 
 ## 開発
 
-```bash
-npm install
-npm run typecheck
-npm test     # 架空の仕様と模擬 API でツール生成と呼び出しを確認
+```sh
+npm test        # Node 20 以上。架空の Swagger と模擬 API で確認する
+npx wrangler dev
 ```
