@@ -25,6 +25,9 @@
 | `JUGAAD_OPENAPI` | なし | 仕様のファイルパスか URL |
 | `JUGAAD_ALLOW_WRITE` | `false` | `true` で POST / PUT / PATCH / DELETE も許可 |
 | `MCP_ACCESS_TOKEN` | なし（HTTP では必須） | 接続 URL に含める秘密の文字列 |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | なし | サービスアカウントの鍵（JSON の中身）。設定するとスプレッドシートのツールが有効になる |
+| `GOOGLE_APPLICATION_CREDENTIALS` | なし | 鍵ファイルのパス（上の代わりに使える） |
+| `GOOGLE_ALLOW_WRITE` | `false` | `true` でスプレッドシートへの書き込みも許可 |
 | `PORT` | `8787` | HTTP の待ち受けポート |
 
 雛形は `.env.example` にあります。
@@ -40,6 +43,19 @@
    ```
 
    claude.ai のカスタムコネクタは任意のヘッダを送れないため、URL に秘密の文字列を含めて保護しています。この URL は API キーと同じように扱ってください。
+
+## Google スプレッドシートを読む（resow.co.jp など）
+
+同じサーバーに Google スプレッドシート用のツール（`sheets_list_spreadsheets` / `sheets_get_spreadsheet` / `sheets_get_values`）も入っています。**サービスアカウント**（ロボット用の Google アカウント）で動くため、本人のパスワードや OAuth の同意画面は要りません。読めるのは、そのサービスアカウントに共有したシートだけです。
+
+用意する手順（Google Workspace のアカウントで作業してください）：
+
+1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作り（会社の組織配下でも個人でも可）、「Google Sheets API」と「Google Drive API」を有効にします。
+2. 「IAM と管理 → サービスアカウント」でサービスアカウントを作り、「キー → 鍵を追加 → JSON」で鍵ファイルをダウンロードします。組織のポリシーで鍵の作成が禁止されている場合は、Workspace 管理者に許可を依頼してください。
+3. サービスアカウントのメールアドレス（`xxx@<project>.iam.gserviceaccount.com`）を、読ませたいスプレッドシート（またはフォルダ）に **閲覧者** として共有します。
+4. 鍵ファイルの中身を、サーバーの環境変数 `GOOGLE_SERVICE_ACCOUNT_JSON` に設定します（デプロイ先のシークレット機能を使い、リポジトリには置かない）。ローカルなら `GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json` でも動きます。
+
+書き込み（`sheets_update_values` / `sheets_append_values`）は、`GOOGLE_ALLOW_WRITE=true` にして、共有を **編集者** にしたときだけ使えます。
 
 ## Claude Code / Claude Desktop からローカルで使う
 

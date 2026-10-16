@@ -5,7 +5,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { bootstrap } from "./bootstrap.js";
 import { createServer } from "./server.js";
 
-const { config, operations } = await bootstrap();
+const { config, operations, extra } = await bootstrap();
 const accessToken = process.env.MCP_ACCESS_TOKEN;
 if (!accessToken && process.env.MCP_ALLOW_NO_AUTH !== "true") {
   // ジュガールのデータを誰でも読める状態で公開しないよう、既定では起動を止める
@@ -40,7 +40,7 @@ app.all(["/mcp", "/mcp/:token"], async (req, res) => {
     res.status(405).set("Allow", "POST").json({ error: "method not allowed" });
     return;
   }
-  const server = createServer(config, operations);
+  const server = createServer(config, operations, extra);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
   res.on("close", () => {
     transport.close();

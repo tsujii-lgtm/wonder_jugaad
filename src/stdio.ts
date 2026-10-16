@@ -3,5 +3,5 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { bootstrap } from "./bootstrap.js";
 import { createServer } from "./server.js";
 
-const { config, operations } = await bootstrap();
-await createServer(config, operations).connect(new StdioServerTransport());
+const { config, operations, extra } = await bootstrap();
+await createServer(config, operations, extra).connect(new StdioServerTransport());

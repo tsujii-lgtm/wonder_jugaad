@@ -2,6 +2,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { callJugaad } from "./client.js";
 import type { Config } from "./config.js";
+import type { ExtraTools } from "./google/sheets.js";
 import { buildRequest, type Operation } from "./openapi.js";
 
 const GENERIC_TOOL = "jugaad_api_request";
@@ -14,10 +15,11 @@ function result(payload: unknown, isError = false) {
   };
 }
 
-export function createServer(config: Config, operations: Operation[]): Server {
+export function createServer(config: Config, operations: Operation[], extra?: ExtraTools): Server {
   const server = new Server({ name: "jugaad-mcp", version: "0.1.0" }, { capabilities: { tools: {} } });
   const byName = new Map(operations.map((op) => [op.toolName, op]));
 
+  const extraDefinitions = extra?.definitions ?? [];
   const allowedMethods = config.allowWrite ? ["GET", "POST", "PUT", "PATCH", "DELETE"] : ["GET"];
   const genericTools = [
     {
@@ -47,6 +49,7 @@ export function createServer(config: Config, operations: Operation[]): Server {
     tools: [
       ...operations.map((op) => ({ name: op.toolName, description: op.description, inputSchema: op.inputSchema })),
       ...genericTools,
+      ...extraDefinitions,
     ],
   }));
 
@@ -68,6 +71,9 @@ export function createServer(config: Config, operations: Operation[]): Server {
         }
         const res = await callJugaad(config, { method, path: String(args.path), query: args.query, body: args.body });
         return result(res, !res.ok);
+      }
+      if (extraDefinitions.some((d) => d.name === name)) {
+        return result(await extra!.call(name, args));
       }
       const op = byName.get(name);
       if (!op) return result(`不明なツール: ${name}`, true);
