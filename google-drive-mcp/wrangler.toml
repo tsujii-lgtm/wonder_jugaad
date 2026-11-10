@@ -1,0 +1,24 @@
+# Google アカウントごとに 1 つの Worker をデプロイする。
+#   npx wrangler deploy --env resow
+# 新しいアカウントを足すときは [env.xxx] をコピーして名前とアカウントを変える。
+name = "google-drive-mcp"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[env.resow]
+name = "google-drive-resow"
+[env.resow.vars]
+GOOGLE_ACCOUNT = "tsujii.k@resow.co.jp"
+WORKER_ENV = "resow"
+
+[env.unistep]
+name = "google-drive-unistep"
+[env.unistep.vars]
+GOOGLE_ACCOUNT = "tsujii.k@unistep.co.jp"
+WORKER_ENV = "unistep"
+
+# 秘密情報はここに書かず、次のコマンドで登録する（--env を付ける）:
+#   npx wrangler secret put MCP_SECRET --env resow
+#   npx wrangler secret put GOOGLE_CLIENT_ID --env resow
+#   npx wrangler secret put GOOGLE_CLIENT_SECRET --env resow
+#   npx wrangler secret put GOOGLE_REFRESH_TOKEN --env resow   （/auth/<MCP_SECRET> でログインした後）

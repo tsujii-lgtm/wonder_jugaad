@@ -5,6 +5,8 @@ Cloudflare Workers（無料枠で足ります）で動くリモート MCP サー
 
 既定は **読み取り専用** です。申請の作成や承認など書き込みを許すときだけ、設定を変えます。
 
+Google ドライブ・スプレッドシートを読むコネクタは、別の Worker として [`google-drive-mcp/`](google-drive-mcp/README.md) にあります。
+
 ## できること
 
 | ツール | 内容 |

@@ -1,0 +1,11 @@
+{
+  "name": "google-drive-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy:resow": "wrangler deploy --env resow",
+    "deploy:unistep": "wrangler deploy --env unistep",
+    "test": "node --test test/*.test.js"
+  }
+}
