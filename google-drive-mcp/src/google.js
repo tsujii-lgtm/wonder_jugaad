@@ -1,7 +1,12 @@
-// Google ドライブ・スプレッドシートを読むツール（読み取り専用）。
+// Google ドライブ・スプレッドシートを読むツール。
 // 1 つの Google アカウントの OAuth リフレッシュトークンで動く。
+// 既定は読み取り専用。ALLOW_SHEETS_WRITE = "true" の環境だけ、スプレッドシートへの書き込みツールが増える。
 
 export const SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+export const SHEETS_WRITE_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+
+export const sheetsWriteEnabled = (env) => String(env.ALLOW_SHEETS_WRITE || "").toLowerCase() === "true";
+export const scopesFor = (env) => (sheetsWriteEnabled(env) ? `${SCOPE} ${SHEETS_WRITE_SCOPE}` : SCOPE);
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const DRIVE = "https://www.googleapis.com/drive/v3";
 const SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
@@ -58,14 +63,21 @@ export function resetTokenCache() {
   cached = { key: "", token: "", exp: 0 };
 }
 
-async function google(env, fetchImpl, url, { raw = false } = {}) {
+async function google(env, fetchImpl, url, { raw = false, method = "GET", body } = {}) {
   const token = await accessToken(env, fetchImpl);
-  const res = await fetchImpl(url, { headers: { Authorization: `Bearer ${token}` } });
+  const init = { method, headers: { Authorization: `Bearer ${token}` } };
+  if (body !== undefined) {
+    init.headers["content-type"] = "application/json";
+    init.body = JSON.stringify(body);
+  }
+  const res = await fetchImpl(url, init);
   if (!res.ok) {
     let detail = "";
     try {
       detail = (await res.json()).error?.message || "";
     } catch {}
+    if (res.status === 403 && method !== "GET")
+      throw new Error(`書き込めませんでした。このアカウント（${env.GOOGLE_ACCOUNT || "接続中のアカウント"}）に編集権限がないか、書き込みの許可でログインし直す必要があります（/auth/<MCP_SECRET>）。${detail}`);
     if (res.status === 404) throw new Error(`見つかりません。このアカウント（${env.GOOGLE_ACCOUNT || "接続中のアカウント"}）に共有されていない可能性があります。${detail}`);
     throw new Error(`Google API エラー ${res.status}: ${detail}`);
   }
@@ -160,9 +172,41 @@ const definitions = [
   },
 ];
 
+const writeDefinitions = [
+  {
+    name: "sheets_update_values",
+    description:
+      "スプレッドシートのセルに書き込む（上書き）。range は「シート名!A1:F10」の形。values は行の配列（1行＝セルの配列）。数式は「=SUM(A1:A3)」のように書けば数式として入る。書く前に sheets_get_values で、上書きしてよい範囲か確かめること。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        spreadsheetId: idArg,
+        range: { type: "string", description: "例: 10月!A2:G40" },
+        values: { type: "array", items: { type: "array", items: {} }, description: "例: [[\"安達\", 13, 19500]]" },
+        raw: { type: "boolean", description: "true なら入力をそのまま文字として入れる（既定は画面で打ったのと同じ扱い）" },
+      },
+      required: ["spreadsheetId", "range", "values"],
+    },
+  },
+  {
+    name: "sheets_duplicate_sheet",
+    description: "シート（タブ）を同じスプレッドシートの中でコピーし、新しい名前を付ける。先月のタブを今月用に複製するときに使う。元のシートは変わらない。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        spreadsheetId: idArg,
+        sourceSheet: { type: "string", description: "コピー元のシート名（または gid の数字）" },
+        newTitle: { type: "string", description: "新しいシート名" },
+      },
+      required: ["spreadsheetId", "sourceSheet", "newTitle"],
+    },
+  },
+];
+
 export async function googleTools(env, fetchImpl = (...a) => fetch(...a)) {
   if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.GOOGLE_REFRESH_TOKEN) return null;
   const get = (url, opts) => google(env, fetchImpl, url, opts);
+  const canWrite = sheetsWriteEnabled(env);
 
   const sheetTitles = async (id) => {
     const meta = await get(`${SHEETS}/${id}?${qs({ fields: "properties.title,sheets.properties(sheetId,title,gridProperties(rowCount,columnCount),hidden)" })}`);
@@ -232,8 +276,41 @@ export async function googleTools(env, fetchImpl = (...a) => fetch(...a)) {
     },
   };
 
+  const writeHandlers = {
+    async sheets_update_values({ spreadsheetId, range, values, raw }) {
+      const id = fileIdFrom(spreadsheetId);
+      if (!range || !String(range).includes("!")) throw new Error("range は「シート名!A1:F10」の形で指定してください");
+      if (!Array.isArray(values) || !values.every(Array.isArray)) throw new Error("values は行の配列（[[...], [...]]）で指定してください");
+      const params = qs({ valueInputOption: raw ? "RAW" : "USER_ENTERED" });
+      const out = await get(`${SHEETS}/${id}/values/${encodeURIComponent(range)}?${params}`, {
+        method: "PUT",
+        body: { range, majorDimension: "ROWS", values },
+      });
+      return { updatedRange: out.updatedRange, updatedRows: out.updatedRows, updatedColumns: out.updatedColumns, updatedCells: out.updatedCells };
+    },
+    async sheets_duplicate_sheet({ spreadsheetId, sourceSheet, newTitle }) {
+      const id = fileIdFrom(spreadsheetId);
+      if (!newTitle) throw new Error("newTitle を指定してください");
+      const sheets = (await sheetTitles(id)).sheets || [];
+      const src = sheets.find((s) => s.properties.title === String(sourceSheet) || String(s.properties.sheetId) === String(sourceSheet));
+      if (!src) throw new Error(`シートが見つかりません: ${sourceSheet}（あるシート: ${sheets.map((s) => s.properties.title).join(" / ")}）`);
+      if (sheets.some((s) => s.properties.title === newTitle)) throw new Error(`同じ名前のシートがすでにあります: ${newTitle}`);
+      const out = await get(`${SHEETS}/${id}:batchUpdate`, {
+        method: "POST",
+        body: {
+          requests: [
+            { duplicateSheet: { sourceSheetId: src.properties.sheetId, insertSheetIndex: sheets.indexOf(src) + 1, newSheetName: newTitle } },
+          ],
+        },
+      });
+      const p = out.replies?.[0]?.duplicateSheet?.properties || {};
+      return { title: p.title, gid: p.sheetId };
+    },
+  };
+  if (canWrite) Object.assign(handlers, writeHandlers);
+
   return {
-    definitions,
+    definitions: canWrite ? [...definitions, ...writeDefinitions] : definitions,
     async call(name, args) {
       const h = handlers[name];
       return h ? h(args || {}) : undefined;

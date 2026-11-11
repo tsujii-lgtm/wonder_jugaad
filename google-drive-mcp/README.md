@@ -2,7 +2,8 @@
 
 Claude（claude.ai）から、**Google アカウントごとに** Google ドライブとスプレッドシートを読むためのコネクタです。
 Gmail_resow や Gmail_unistep と同じ考え方で、アカウントごとに 1 つずつ Cloudflare Workers（無料枠）に立てます。
-**読み取り専用** です（スコープは `drive.readonly` だけ）。
+既定は **読み取り専用** です（スコープは `drive.readonly` だけ）。
+`wrangler.toml` で `ALLOW_SHEETS_WRITE = "true"` にした環境（今は unistep だけ）は、スプレッドシートへの書き込みもできます（ログイン時に `spreadsheets` の許可も求めます）。
 
 ## できること
 
@@ -15,6 +16,13 @@ Gmail_resow や Gmail_unistep と同じ考え方で、アカウントごとに 1
 | `drive_read_file` | 中身を文字で読む（ドキュメント・スライド・スプレッドシート・テキスト） |
 | `sheets_get_spreadsheet` | スプレッドシートのシート（タブ）一覧 |
 | `sheets_get_values` | セルの値を読む。シート名だけでも、範囲指定でも、全シートでも |
+
+書き込みを許可した環境だけ、次の 2 つが増えます。
+
+| ツール | 内容 |
+| --- | --- |
+| `sheets_update_values` | セルに書き込む（上書き）。数式も入る |
+| `sheets_duplicate_sheet` | シート（タブ）を同じファイル内でコピーして名前を付ける |
 
 ID の代わりに、共有リンクの URL をそのまま渡せます。
 

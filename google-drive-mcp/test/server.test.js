@@ -27,6 +27,14 @@ globalThis.fetch = async (url, init = {}) => {
     });
   if (u.pathname === `/v4/spreadsheets/${SHEET_ID}/values:batchGet`)
     return Response.json({ valueRanges: u.searchParams.getAll("ranges").map((r) => ({ range: r, values: [["No", "項目"]] })) });
+  if (u.pathname.startsWith(`/v4/spreadsheets/${SHEET_ID}/values/`) && init.method === "PUT") {
+    const body = JSON.parse(init.body);
+    return Response.json({ updatedRange: body.range, updatedRows: body.values.length, updatedColumns: body.values[0].length, updatedCells: body.values.flat().length, input: u.searchParams.get("valueInputOption") });
+  }
+  if (u.pathname === `/v4/spreadsheets/${SHEET_ID}:batchUpdate` && init.method === "POST") {
+    const dup = JSON.parse(init.body).requests[0].duplicateSheet;
+    return Response.json({ replies: [{ duplicateSheet: { properties: { sheetId: 99, title: dup.newSheetName, index: dup.insertSheetIndex } } }] });
+  }
   if (u.pathname === "/drive/v3/files") return Response.json({ files: [{ id: "f1", name: "就業規則" }], q: u.searchParams.get("q") });
   if (u.pathname === "/drive/v3/files/doc1aaaaaaaa") return Response.json({ id: "doc1", name: "規程", mimeType: "application/vnd.google-apps.document" });
   if (u.pathname === "/drive/v3/files/doc1aaaaaaaa/export") return new Response("第1条 目的");
@@ -128,4 +136,42 @@ test("auth redirects to Google with offline access", async () => {
   assert.match(page, /--env resow/);
   const bad = await req(`/oauth/callback?code=nope&state=${state}`);
   assert.equal(bad.status, 400);
+});
+
+const writeEnv = { ...env, GOOGLE_ACCOUNT: "tsujii.k@unistep.co.jp", WORKER_ENV: "unistep", ALLOW_SHEETS_WRITE: "true" };
+const callW = async (name, args) =>
+  (await rpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, writeEnv)).result;
+
+test("write tools only appear when ALLOW_SHEETS_WRITE is true", async () => {
+  const ro = await call("sheets_update_values", { spreadsheetId: SHEET_ID, range: "決定事項!A1", values: [["x"]] });
+  assert.ok(ro.isError);
+  assert.match(ro.content[0].text, /不明なツール/);
+  const list = await rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, writeEnv);
+  assert.equal(list.result.tools.length, 9);
+  const init = await rpc({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } }, writeEnv);
+  assert.match(init.result.instructions, /書き込み/);
+});
+
+test("sheets_update_values writes with USER_ENTERED and validates input", async () => {
+  const out = parse(await callW("sheets_update_values", { spreadsheetId: SHEET_ID, range: "決定事項!A2:C3", values: [["安達", 13, 19500], ["角川", 17, "=B3*1500"]] }));
+  assert.deepEqual(out, { updatedRange: "決定事項!A2:C3", updatedRows: 2, updatedColumns: 3, updatedCells: 6 });
+  const put = calls.find((c) => c.init.method === "PUT");
+  assert.equal(put.url.searchParams.get("valueInputOption"), "USER_ENTERED");
+  assert.ok((await callW("sheets_update_values", { spreadsheetId: SHEET_ID, range: "A1", values: [["x"]] })).isError);
+  assert.ok((await callW("sheets_update_values", { spreadsheetId: SHEET_ID, range: "決定事項!A1", values: ["x"] })).isError);
+});
+
+test("sheets_duplicate_sheet copies a tab next to the source", async () => {
+  const out = parse(await callW("sheets_duplicate_sheet", { spreadsheetId: SHEET_ID, sourceSheet: "進行台本", newTitle: "進行台本(10月)" }));
+  assert.deepEqual(out, { title: "進行台本(10月)", gid: 99 });
+  const dupErr = await callW("sheets_duplicate_sheet", { spreadsheetId: SHEET_ID, sourceSheet: "進行台本", newTitle: "決定事項" });
+  assert.match(dupErr.content[0].text, /すでにあります/);
+  const missing = await callW("sheets_duplicate_sheet", { spreadsheetId: SHEET_ID, sourceSheet: "ない", newTitle: "x" });
+  assert.match(missing.content[0].text, /見つかりません/);
+});
+
+test("auth asks for the spreadsheets scope only when writing is enabled", async () => {
+  const res = await worker.fetch(new Request(`https://w.example/auth/${SECRET}`), writeEnv);
+  const scope = new URL(res.headers.get("location")).searchParams.get("scope");
+  assert.equal(scope, "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets");
 });

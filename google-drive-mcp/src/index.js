@@ -1,8 +1,9 @@
 // Google ドライブ・スプレッドシートを読むリモート MCP サーバー (Cloudflare Workers 用)。
 // Google アカウントごとに 1 つずつデプロイする（wrangler.toml の [env.resow] など）。
-// claude.ai の「カスタムコネクタ」に https://<worker>/mcp/<MCP_SECRET> を登録して使う。読み取り専用。
+// claude.ai の「カスタムコネクタ」に https://<worker>/mcp/<MCP_SECRET> を登録して使う。
+// 既定は読み取り専用。ALLOW_SHEETS_WRITE = "true" の環境だけスプレッドシートに書き込める。
 
-import { googleTools, SCOPE } from "./google.js";
+import { googleTools, scopesFor, sheetsWriteEnabled } from "./google.js";
 
 const SERVER_INFO = { name: "google-drive-mcp", version: "0.1.0" };
 const SUPPORTED_PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
@@ -26,7 +27,7 @@ export default {
         client_id: env.GOOGLE_CLIENT_ID,
         redirect_uri: `${url.origin}/oauth/callback`,
         response_type: "code",
-        scope: SCOPE,
+        scope: scopesFor(env),
         access_type: "offline",
         prompt: "consent",
         state: await stateFor(env.MCP_SECRET),
@@ -54,10 +55,10 @@ export default {
 
     const tools = (await googleTools(env)) || { definitions: [], call: async () => undefined };
     if (Array.isArray(payload)) {
-      const results = (await Promise.all(payload.map((m) => handleMessage(m, tools, account)))).filter(Boolean);
+      const results = (await Promise.all(payload.map((m) => handleMessage(m, tools, account, sheetsWriteEnabled(env))))).filter(Boolean);
       return results.length ? json(results) : new Response(null, { status: 202 });
     }
-    const result = await handleMessage(payload, tools, account);
+    const result = await handleMessage(payload, tools, account, sheetsWriteEnabled(env));
     return result ? json(result) : new Response(null, { status: 202 });
   },
 };
@@ -94,7 +95,7 @@ async function oauthCallback(url, env) {
   );
 }
 
-export async function handleMessage(msg, tools, account = "") {
+export async function handleMessage(msg, tools, account = "", canWrite = false) {
   if (!msg || msg.jsonrpc !== "2.0" || typeof msg.method !== "string") {
     return msg && "id" in msg ? rpcError(msg.id, -32600, "Invalid Request") : null;
   }
@@ -107,7 +108,7 @@ export async function handleMessage(msg, tools, account = "") {
         protocolVersion: SUPPORTED_PROTOCOLS.includes(requested) ? requested : SUPPORTED_PROTOCOLS[0],
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO,
-        instructions: `${account || "1 つの Google アカウント"} の Google ドライブとスプレッドシートを読むツール（読み取り専用）。共有リンクの URL をそのまま fileId / spreadsheetId に渡せる。スプレッドシートは sheets_get_spreadsheet でシート名を見てから sheets_get_values で読む。`,
+        instructions: `${account || "1 つの Google アカウント"} の Google ドライブとスプレッドシートを読むツール（${canWrite ? "スプレッドシートだけ書き込みもできる" : "読み取り専用"}）。共有リンクの URL をそのまま fileId / spreadsheetId に渡せる。スプレッドシートは sheets_get_spreadsheet でシート名を見てから sheets_get_values で読む。${canWrite ? "書き込み（sheets_update_values / sheets_duplicate_sheet）の前に、必ず今の値を読んで、上書きしてよい範囲か確かめる。" : ""}`,
       });
     }
     case "ping":

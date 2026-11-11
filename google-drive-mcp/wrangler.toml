@@ -16,6 +16,9 @@ name = "google-drive-unistep"
 [env.unistep.vars]
 GOOGLE_ACCOUNT = "tsujii.k@unistep.co.jp"
 WORKER_ENV = "unistep"
+# スプレッドシートへの書き込み（sheets_update_values / sheets_duplicate_sheet）を許可する。
+# Google のログイン時に spreadsheets の許可も求める。resow は読み取り専用のまま。
+ALLOW_SHEETS_WRITE = "true"
 
 # 秘密情報はここに書かず、次のコマンドで登録する（--env を付ける）:
 #   npx wrangler secret put MCP_SECRET --env resow
