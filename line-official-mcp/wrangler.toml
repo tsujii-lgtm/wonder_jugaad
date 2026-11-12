@@ -1,0 +1,15 @@
+# LINE公式アカウントごとに 1 つの Worker をデプロイする。
+#   npx wrangler deploy --env emit
+# 新しいアカウントを足すときは [env.xxx] をコピーして名前とラベルを変える。
+name = "line-official-mcp"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[env.emit]
+name = "line-official-emit"
+[env.emit.vars]
+LINE_ACCOUNT_LABEL = "エミット"
+
+# 秘密情報はここに書かず、次のコマンドで登録する（--env を付ける）:
+#   npx wrangler secret put MCP_SECRET --env emit
+#   npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN --env emit
