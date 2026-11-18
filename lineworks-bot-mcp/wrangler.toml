@@ -1,0 +1,18 @@
+name = "lineworks-bot-resow"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+LW_LABEL = "ReSow"
+# 送ってよいトークルームID（カンマ区切り）。先頭が既定の送り先。
+LW_ALLOWED_CHANNEL_IDS = ""
+# 最初にトークルームを作るときだけ "true" にして、作ったら "false" に戻す
+LW_ALLOW_CREATE_CHANNEL = "true"
+
+# 秘密情報はここに書かず、次のコマンドで登録する:
+#   npx wrangler secret put MCP_SECRET
+#   npx wrangler secret put LW_CLIENT_ID
+#   npx wrangler secret put LW_CLIENT_SECRET
+#   npx wrangler secret put LW_SERVICE_ACCOUNT
+#   npx wrangler secret put LW_BOT_ID
+#   npx wrangler secret put LW_PRIVATE_KEY < ~/Downloads/private_xxxx.key
