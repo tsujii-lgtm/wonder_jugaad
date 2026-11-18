@@ -10,6 +10,11 @@ name = "google-drive-resow"
 [env.resow.vars]
 GOOGLE_ACCOUNT = "tsujii.k@resow.co.jp"
 WORKER_ENV = "resow"
+# Google Workspace 全般（ドライブ・スプレッドシート・ドキュメント・スライド・Gmail・カレンダー）を読み書きする。
+# ログイン時に drive / spreadsheets / documents / presentations / gmail.modify / calendar の許可を求める。
+GWS_FULL = "true"
+# メール送信・ゴミ箱・共有・招待・予定の削除のツールも入れる（使う前に毎回チャットで OK をもらう。confirmed: true が必須）。
+ALLOW_SEND = "true"
 
 [env.unistep]
 name = "google-drive-unistep"

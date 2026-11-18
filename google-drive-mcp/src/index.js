@@ -3,7 +3,7 @@
 // claude.ai の「カスタムコネクタ」に https://<worker>/mcp/<MCP_SECRET> を登録して使う。
 // 既定は読み取り専用。ALLOW_SHEETS_WRITE = "true" の環境だけスプレッドシートに書き込める。
 
-import { googleTools, scopesFor, sheetsWriteEnabled } from "./google.js";
+import { googleTools, scopesFor, sheetsWriteEnabled, gwsFullEnabled } from "./google.js";
 
 const SERVER_INFO = { name: "google-drive-mcp", version: "0.1.0" };
 const SUPPORTED_PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
@@ -55,10 +55,10 @@ export default {
 
     const tools = (await googleTools(env)) || { definitions: [], call: async () => undefined };
     if (Array.isArray(payload)) {
-      const results = (await Promise.all(payload.map((m) => handleMessage(m, tools, account, sheetsWriteEnabled(env))))).filter(Boolean);
+      const results = (await Promise.all(payload.map((m) => handleMessage(m, tools, account, sheetsWriteEnabled(env), gwsFullEnabled(env))))).filter(Boolean);
       return results.length ? json(results) : new Response(null, { status: 202 });
     }
-    const result = await handleMessage(payload, tools, account, sheetsWriteEnabled(env));
+    const result = await handleMessage(payload, tools, account, sheetsWriteEnabled(env), gwsFullEnabled(env));
     return result ? json(result) : new Response(null, { status: 202 });
   },
 };
@@ -95,7 +95,10 @@ async function oauthCallback(url, env) {
   );
 }
 
-export async function handleMessage(msg, tools, account = "", canWrite = false) {
+const GWS_INSTRUCTIONS = (account) =>
+  `${account} の Google Workspace（ドライブ・スプレッドシート・ドキュメント・スライド・Gmail・カレンダー）を読み書きするツール。共有リンクの URL をそのまま fileId / spreadsheetId / documentId / presentationId に渡せる。書き込む前に、今の中身を読んで、上書きしてよいか確かめる。メール送信・ゴミ箱・共有・招待・予定の削除（confirmed を求めるツール）は、使う前に必ず内容を本人に見せて OK をもらう。メールは gmail_create_draft で下書きを作り、本人の OK のあとに gmail_send_draft で送る。`;
+
+export async function handleMessage(msg, tools, account = "", canWrite = false, full = false) {
   if (!msg || msg.jsonrpc !== "2.0" || typeof msg.method !== "string") {
     return msg && "id" in msg ? rpcError(msg.id, -32600, "Invalid Request") : null;
   }
@@ -108,7 +111,7 @@ export async function handleMessage(msg, tools, account = "", canWrite = false) 
         protocolVersion: SUPPORTED_PROTOCOLS.includes(requested) ? requested : SUPPORTED_PROTOCOLS[0],
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO,
-        instructions: `${account || "1 つの Google アカウント"} の Google ドライブとスプレッドシートを読むツール（${canWrite ? "スプレッドシートだけ書き込みもできる" : "読み取り専用"}）。共有リンクの URL をそのまま fileId / spreadsheetId に渡せる。スプレッドシートは sheets_get_spreadsheet でシート名を見てから sheets_get_values で読む。${canWrite ? "書き込み（sheets_update_values / sheets_duplicate_sheet）の前に、必ず今の値を読んで、上書きしてよい範囲か確かめる。" : ""}`,
+        instructions: full ? GWS_INSTRUCTIONS(account) : `${account || "1 つの Google アカウント"} の Google ドライブとスプレッドシートを読むツール（${canWrite ? "スプレッドシートだけ書き込みもできる" : "読み取り専用"}）。共有リンクの URL をそのまま fileId / spreadsheetId に渡せる。スプレッドシートは sheets_get_spreadsheet でシート名を見てから sheets_get_values で読む。${canWrite ? "書き込み（sheets_update_values / sheets_duplicate_sheet）の前に、必ず今の値を読んで、上書きしてよい範囲か確かめる。" : ""}`,
       });
     }
     case "ping":

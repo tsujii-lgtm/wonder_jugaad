@@ -4,9 +4,15 @@
 
 export const SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 export const SHEETS_WRITE_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+export { GWS_SCOPES } from "./gws.js";
+import { GWS_SCOPES, gwsTools } from "./gws.js";
 
-export const sheetsWriteEnabled = (env) => String(env.ALLOW_SHEETS_WRITE || "").toLowerCase() === "true";
-export const scopesFor = (env) => (sheetsWriteEnabled(env) ? `${SCOPE} ${SHEETS_WRITE_SCOPE}` : SCOPE);
+const flag = (v) => String(v || "").toLowerCase() === "true";
+// GWS_FULL = "true": ドライブ・スプレッドシート・ドキュメント・スライド・Gmail・カレンダーを読み書きする。
+export const gwsFullEnabled = (env) => flag(env.GWS_FULL);
+export const sheetsWriteEnabled = (env) => flag(env.ALLOW_SHEETS_WRITE) || gwsFullEnabled(env);
+export const scopesFor = (env) =>
+  gwsFullEnabled(env) ? GWS_SCOPES.join(" ") : sheetsWriteEnabled(env) ? `${SCOPE} ${SHEETS_WRITE_SCOPE}` : SCOPE;
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const DRIVE = "https://www.googleapis.com/drive/v3";
 const SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
@@ -63,10 +69,13 @@ export function resetTokenCache() {
   cached = { key: "", token: "", exp: 0 };
 }
 
-async function google(env, fetchImpl, url, { raw = false, method = "GET", body } = {}) {
+async function google(env, fetchImpl, url, { raw = false, method = "GET", body, rawBody, contentType } = {}) {
   const token = await accessToken(env, fetchImpl);
   const init = { method, headers: { Authorization: `Bearer ${token}` } };
-  if (body !== undefined) {
+  if (rawBody !== undefined) {
+    init.headers["content-type"] = contentType;
+    init.body = rawBody;
+  } else if (body !== undefined) {
     init.headers["content-type"] = "application/json";
     init.body = JSON.stringify(body);
   }
@@ -81,6 +90,7 @@ async function google(env, fetchImpl, url, { raw = false, method = "GET", body }
     if (res.status === 404) throw new Error(`見つかりません。このアカウント（${env.GOOGLE_ACCOUNT || "接続中のアカウント"}）に共有されていない可能性があります。${detail}`);
     throw new Error(`Google API エラー ${res.status}: ${detail}`);
   }
+  if (res.status === 204) return {};
   return raw ? res.text() : res.json();
 }
 
@@ -308,9 +318,15 @@ export async function googleTools(env, fetchImpl = (...a) => fetch(...a)) {
     },
   };
   if (canWrite) Object.assign(handlers, writeHandlers);
+  let defs = canWrite ? [...definitions, ...writeDefinitions] : [...definitions];
+  if (gwsFullEnabled(env)) {
+    const extra = gwsTools(env, get, { sheetTitles });
+    Object.assign(handlers, extra.handlers);
+    defs = [...defs, ...extra.definitions];
+  }
 
   return {
-    definitions: canWrite ? [...definitions, ...writeDefinitions] : definitions,
+    definitions: defs,
     async call(name, args) {
       const h = handlers[name];
       return h ? h(args || {}) : undefined;
