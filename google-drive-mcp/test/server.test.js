@@ -70,9 +70,9 @@ test("wrong secret is 404", async () => {
   assert.equal((await req("/auth/wrong")).status, 404);
 });
 
-test("tools/list: 7 read-only tools, none without credentials", async () => {
+test("tools/list: 8 read-only tools, none without credentials", async () => {
   const list = await rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" });
-  assert.equal(list.result.tools.length, 7);
+  assert.equal(list.result.tools.length, 8);
   const empty = await rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { MCP_SECRET: SECRET });
   assert.equal(empty.result.tools.length, 0);
   const init = await rpc({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } });
@@ -147,7 +147,7 @@ test("write tools only appear when ALLOW_SHEETS_WRITE is true", async () => {
   assert.ok(ro.isError);
   assert.match(ro.content[0].text, /不明なツール/);
   const list = await rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, writeEnv);
-  assert.equal(list.result.tools.length, 9);
+  assert.equal(list.result.tools.length, 10);
   const init = await rpc({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } }, writeEnv);
   assert.match(init.result.instructions, /書き込み/);
 });

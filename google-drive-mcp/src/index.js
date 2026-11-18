@@ -85,8 +85,14 @@ async function oauthCallback(url, env) {
     return html(`トークンを取れませんでした（${res.status} ${escape(body.error || "")} ${escape(body.error_description || "")}）。もう一度 /auth/... を開いてください。`, 400);
   }
   const envFlag = env.WORKER_ENV ? ` --env ${escape(env.WORKER_ENV)}` : "";
+  const granted = String(body.scope || "").split(" ").filter(Boolean);
+  const missing = scopesFor(env).split(" ").filter((s) => !granted.includes(s));
+  const scopeNote = missing.length
+    ? `<p style="color:#b00"><b>許可が足りません：</b>${missing.map((s) => escape(s.split("/").pop())).join("、")}。Google の許可画面で、すべての項目にチェックを入れてからやり直してください（/auth/... をもう一度開く）。</p>`
+    : `<p>許可：すべてそろっています（${granted.length} 件）。</p>`;
   return html(
     `<p>ログインできました（${escape(env.GOOGLE_ACCOUNT || "")}）。</p>
+${scopeNote}
 <p>ターミナルで次のコマンドを実行し、聞かれたら下の文字列を貼り付けて Enter を押してください。</p>
 <pre>npx wrangler secret put GOOGLE_REFRESH_TOKEN${envFlag}</pre>
 <p><textarea readonly rows="3" cols="80" onclick="this.select()">${escape(body.refresh_token)}</textarea></p>

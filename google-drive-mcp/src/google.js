@@ -117,6 +117,11 @@ const idArg = { type: "string", description: "ファイル ID、または共有�
 
 const definitions = [
   {
+    name: "google_whoami",
+    description: "このコネクタがつながっている Google アカウントと、もらっている許可（スコープ）を見る。403 で止まるときの確認用。",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
     name: "drive_search_files",
     description:
       "ドライブのファイルを探す。query はファイル名と本文の両方から探す。type で種類を絞れる。共有ドライブも含む。",
@@ -224,6 +229,14 @@ export async function googleTools(env, fetchImpl = (...a) => fetch(...a)) {
   };
 
   const handlers = {
+    async google_whoami() {
+      const token = await accessToken(env, fetchImpl);
+      const res = await fetchImpl(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(token)}`);
+      const info = await res.json().catch(() => ({}));
+      const granted = String(info.scope || "").split(" ").filter(Boolean);
+      const wanted = scopesFor(env).split(" ");
+      return { account: info.email || env.GOOGLE_ACCOUNT, granted, missing: wanted.filter((s) => !granted.includes(s)) };
+    },
     async drive_search_files({ query, type, q, max, pageToken }) {
       let filter = q;
       if (!filter) {
