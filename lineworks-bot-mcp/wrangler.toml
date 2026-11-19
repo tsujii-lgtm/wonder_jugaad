@@ -4,11 +4,11 @@ compatibility_date = "2026-09-01"
 
 [vars]
 LW_LABEL = "ReSow"
-# d5681b2f-…: 「お仕事さがし（B型PC作業）」トーク（2026-11-19作成、今は辻井さんのみ）
+# a983cbfc-…: 「お仕事さがし（B型PC作業）」グループ（2026-11-19作成、辻井さん・石橋さん＋Bot。メンバーは画面から自由に招待・退出できる）
 # 送ってよいトークルームID（カンマ区切り）。先頭が既定の送り先。
-LW_ALLOWED_CHANNEL_IDS = "d5681b2f-5c5b-3d1b-dc3b-af628f343116"
+LW_ALLOWED_CHANNEL_IDS = "a983cbfc-007d-d37a-4622-34395e22056e"
 # 最初にトークルームを作るときだけ "true" にして、作ったら "false" に戻す
-LW_ALLOW_CREATE_CHANNEL = "true"
+LW_ALLOW_CREATE_CHANNEL = "false"
 
 # 秘密情報はここに書かず、次のコマンドで登録する:
 #   npx wrangler secret put MCP_SECRET
