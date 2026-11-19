@@ -58,6 +58,17 @@ npx wrangler deploy
 Claude が `lineworks_create_channel` で Bot 入りのグループトークを作り、返ってきた ID を
 `wrangler.toml` の `LW_ALLOWED_CHANNEL_IDS` に入れ、`LW_ALLOW_CREATE_CHANNEL` を `"false"` に戻して、もう一度 `npx wrangler deploy`。
 
+## 管理者画面の「グループ」のトークに入れる（受信口）
+
+1. Developer Console →「Bot」→ お仕事さがしBot →「修正」→ Callback URL を On にして
+   `https://lineworks-bot-resow.<アカウント>.workers.dev/callback` を入れ、「メッセージ」の受信にチェック → 保存。
+   同じ画面の **Bot Secret** をコピー。
+2. `npx wrangler secret put LW_BOT_SECRET`（Bot Secret を貼る）→ `npx wrangler deploy`
+3. グループのトークにBotを招待すると、Botが「このトークのID：…」と書き込む（あとから「トークID」と送っても返す）。
+4. そのIDを `LW_ALLOWED_CHANNEL_IDS` に入れて `npx wrangler deploy`。
+
+受信口は署名（X-WORKS-Signature）を確かめ、トークの中身は保存しません。
+
 ## テスト
 
 ```sh

@@ -78,3 +78,17 @@ test("missing settings are reported", async () => {
   const r = await call("lineworks_list_targets", {}, { MCP_SECRET: SECRET });
   assert.match(r.content[0].text, /設定が足りません/);
 });
+
+test("callback: joined posts the channel id, bad signature is 401", async () => {
+  const { createHmac } = await import("node:crypto");
+  const e = { ...env, LW_BOT_SECRET: "botsecret" };
+  const body = JSON.stringify({ type: "joined", source: { channelId: "grp-1" } });
+  const sig = createHmac("sha256", "botsecret").update(body).digest("base64");
+  const bad = await worker.fetch(new Request("https://x.dev/callback", { method: "POST", body, headers: { "x-works-signature": "nope" } }), e);
+  assert.equal(bad.status, 401);
+  seen.length = 0;
+  const ok = await worker.fetch(new Request("https://x.dev/callback", { method: "POST", body, headers: { "x-works-signature": sig } }), e);
+  assert.equal(ok.status, 200);
+  const post = seen.find((s) => s.u.pathname.includes("/channels/grp-1/messages"));
+  assert.match(JSON.parse(post.init.body).content.text, /grp-1/);
+});

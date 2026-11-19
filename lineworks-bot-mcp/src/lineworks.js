@@ -94,6 +94,13 @@ async function api(env, method, path, body) {
   return data;
 }
 
+// Botの受信口（/callback）から使う。許可リストに関係なく、Botが入っているトークにだけ返事をする。
+export async function postText(env, channelId, text) {
+  return api(env, "POST", `/bots/${encodeURIComponent(env.LW_BOT_ID)}/channels/${encodeURIComponent(channelId)}/messages`, {
+    content: { type: "text", text },
+  });
+}
+
 export function splitText(text, max = MAX_TEXT) {
   const chunks = [];
   let rest = String(text);
