@@ -8,7 +8,7 @@ LW_LABEL = "ReSow"
 # 送ってよいトークルームID（カンマ区切り）。先頭が既定の送り先。
 LW_ALLOWED_CHANNEL_IDS = "d5681b2f-5c5b-3d1b-dc3b-af628f343116"
 # 最初にトークルームを作るときだけ "true" にして、作ったら "false" に戻す
-LW_ALLOW_CREATE_CHANNEL = "false"
+LW_ALLOW_CREATE_CHANNEL = "true"
 
 # 秘密情報はここに書かず、次のコマンドで登録する:
 #   npx wrangler secret put MCP_SECRET
