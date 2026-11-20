@@ -6,8 +6,9 @@ compatibility_date = "2026-09-01"
 LW_LABEL = "ReSow"
 # b4ae017a-…: 管理者画面の「グループ」のトーク（2026-11-19にBotを招待。毎朝の送り先＝先頭）
 # a983cbfc-…: 「お仕事さがし（B型PC作業）」グループ（2026-11-19作成、辻井さん・石橋さん＋Bot。メンバーは画面から自由に招待・退出できる）
+# 0a2c61ae-…: 管理者画面で作ったグループ「厚労省 障害福祉ニュース」のトーク（2026-11-20。毎朝の厚労省ニュースの送り先）
 # 送ってよいトークルームID（カンマ区切り）。先頭が既定の送り先。
-LW_ALLOWED_CHANNEL_IDS = "b4ae017a-f102-2ec0-777c-a6d06d1db8ff,a983cbfc-007d-d37a-4622-34395e22056e"
+LW_ALLOWED_CHANNEL_IDS = "b4ae017a-f102-2ec0-777c-a6d06d1db8ff,a983cbfc-007d-d37a-4622-34395e22056e,0a2c61ae-d289-85b3-5db2-a2b7102c4d3d"
 # 最初にトークルームを作るときだけ "true" にして、作ったら "false" に戻す
 LW_ALLOW_CREATE_CHANNEL = "false"
 
